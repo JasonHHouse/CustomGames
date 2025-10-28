@@ -20,13 +20,41 @@ A classic Connect Four game implementation with AI opponent.
   - Score tracking
   - Responsive design for mobile and desktop
 
+## Running the Application
+
+### As Desktop App (Electron)
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Run the application:
+   ```bash
+   npm start
+   ```
+
+3. Build installer (optional):
+   ```bash
+   npm run package:mac    # For macOS
+   npm run package:win    # For Windows
+   npm run package:linux  # For Linux
+   ```
+
+### In Web Browser
+
+Simply open `index.html` in a web browser.
+
 ## How to Play
 
-1. Open `index.html` in a web browser
-2. Select game mode (Player vs Player or Player vs AI)
-3. If playing against AI, choose difficulty level
-4. Click on a column to drop your piece
-5. First player to get 4 pieces in a row (horizontal, vertical, or diagonal) wins!
+1. Select game mode (Player vs Player or Player vs AI)
+2. If playing against AI, choose difficulty level
+3. Click on a column to drop your piece
+4. First player to get 4 pieces in a row (horizontal, vertical, or diagonal) wins!
+
+### Keyboard Shortcuts (Desktop App)
+- `Cmd/Ctrl + N`: New Game
+- `Cmd/Ctrl + Q`: Quit
 
 ## Game Rules
 
@@ -41,6 +69,7 @@ A classic Connect Four game implementation with AI opponent.
 - **HTML5** - Structure and layout
 - **CSS3** - Styling and animations
 - **Vanilla JavaScript** - Game logic and AI
+- **Electron** - Desktop application framework
 
 ## File Structure
 
@@ -50,6 +79,9 @@ ConnectFour/
 ├── styles.css          # Styling and animations
 ├── game.js             # Core game logic
 ├── ai.js               # AI implementation
+├── main.js             # Electron main process
+├── package.json        # Node.js dependencies and scripts
+├── assets/             # Application icons
 ├── README.md           # This file
 └── PLAN.md             # Implementation plan
 ```
