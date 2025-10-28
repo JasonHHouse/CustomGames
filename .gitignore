@@ -1,0 +1,36 @@
+# Build outputs
+**/dist/
+**/dist-electron/
+
+# Node modules
+**/node_modules/
+
+# Electron build cache
+**/.electron-builder-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
