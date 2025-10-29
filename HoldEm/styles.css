@@ -273,11 +273,16 @@ header h1 {
 
 /* Action Panel */
 .action-panel {
-    margin-top: 30px;
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.7);
     padding: 20px;
     border-radius: 15px;
     display: none;
+    z-index: 100;
+    max-width: 200px;
 }
 
 .action-panel.active {
@@ -324,20 +329,20 @@ header h1 {
 
 .action-buttons {
     display: flex;
-    justify-content: center;
-    gap: 15px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .action-btn {
-    padding: 12px 30px;
+    padding: 12px 20px;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 100px;
+    width: 100%;
+    white-space: nowrap;
 }
 
 .action-btn:hover:not(:disabled) {
