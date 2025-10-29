@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Poker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Texas Hold'em</h1>
+            <div class="game-info">
+                <div class="pot-info">
+                    <span class="label">Pot:</span>
+                    <span id="pot" class="value">$0</span>
+                </div>
+                <div class="round-info">
+                    <span id="round-name">Pre-Flop</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="poker-table">
+            <!-- Community Cards -->
+            <div class="community-cards" id="community-cards">
+                <div class="card-slot empty"></div>
+                <div class="card-slot empty"></div>
+                <div class="card-slot empty"></div>
+                <div class="card-slot empty"></div>
+                <div class="card-slot empty"></div>
+            </div>
+
+            <!-- Players -->
+            <div class="players-container">
+                <!-- AI Player 1 (Top Left) -->
+                <div class="player player-1 ai-player" id="player-1">
+                    <div class="player-info">
+                        <div class="player-name">Player 2</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 2 (Top) -->
+                <div class="player player-2 ai-player" id="player-2">
+                    <div class="player-info">
+                        <div class="player-name">Player 3</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 3 (Top Right) -->
+                <div class="player player-3 ai-player" id="player-3">
+                    <div class="player-info">
+                        <div class="player-name">Player 4</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 4 (Right) -->
+                <div class="player player-4 ai-player" id="player-4">
+                    <div class="player-info">
+                        <div class="player-name">Player 5</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 5 (Bottom Right) -->
+                <div class="player player-5 ai-player" id="player-5">
+                    <div class="player-info">
+                        <div class="player-name">Player 6</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 6 (Bottom) -->
+                <div class="player player-6 ai-player" id="player-6">
+                    <div class="player-info">
+                        <div class="player-name">Player 7</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- AI Player 7 (Left) -->
+                <div class="player player-7 ai-player" id="player-7">
+                    <div class="player-info">
+                        <div class="player-name">Player 8</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card card-back"></div>
+                        <div class="card card-back"></div>
+                    </div>
+                </div>
+
+                <!-- Human Player (Bottom Center) -->
+                <div class="player player-0 human-player active" id="player-0">
+                    <div class="player-info">
+                        <div class="player-name">You</div>
+                        <div class="player-chips">$1000</div>
+                        <div class="player-status"></div>
+                    </div>
+                    <div class="player-cards">
+                        <div class="card"></div>
+                        <div class="card"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Panel -->
+        <div class="action-panel" id="action-panel">
+            <div class="bet-controls">
+                <input type="range" id="bet-slider" min="0" max="1000" value="0" step="10">
+                <div class="bet-amount">
+                    <span>Bet: $</span>
+                    <span id="bet-amount">0</span>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="fold-btn" class="action-btn btn-fold">Fold</button>
+                <button id="check-btn" class="action-btn btn-check">Check</button>
+                <button id="call-btn" class="action-btn btn-call">Call $0</button>
+                <button id="raise-btn" class="action-btn btn-raise">Raise</button>
+                <button id="all-in-btn" class="action-btn btn-all-in">All In</button>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <div class="start-panel" id="start-panel">
+            <button id="start-btn" class="btn-primary">Start New Game</button>
+        </div>
+
+        <!-- Game Over Panel -->
+        <div class="game-over-panel hidden" id="game-over-panel">
+            <div class="game-over-content">
+                <h2 id="game-over-title">Game Over</h2>
+                <p id="game-over-message"></p>
+                <button id="new-game-btn" class="btn-primary">New Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="cards.js"></script>
+    <script src="poker-hand.js"></script>
+    <script src="ai.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
