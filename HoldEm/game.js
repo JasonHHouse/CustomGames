@@ -10,6 +10,7 @@ const gameState = {
     communityCards: [],
     pot: 0,
     currentBet: 0,
+    minRaise: 0, // Minimum raise amount (tracks last raise size)
     dealerIndex: 0,
     currentPlayerIndex: 0,
     round: 'pre-flop', // pre-flop, flop, turn, river, showdown
@@ -182,6 +183,9 @@ function postBlinds() {
     gameState.pot += bbAmount;
     gameState.currentBet = bbAmount;
 
+    // Big blind sets the initial minimum raise
+    gameState.minRaise = gameState.bigBlind;
+
     if (bigBlindPlayer.chips === 0) bigBlindPlayer.allIn = true;
 
     updatePlayerDisplay(smallBlindPlayer, 'Small Blind');
@@ -196,6 +200,9 @@ function startBettingRound() {
     for (let player of gameState.players) {
         player.hasActed = false;
     }
+
+    // Reset minimum raise to big blind at start of new betting round
+    gameState.minRaise = gameState.bigBlind;
 
     // Determine first player to act
     if (gameState.round === 'pre-flop') {
@@ -590,10 +597,15 @@ function executePlayerAction(player, decision) {
 
         case 'raise':
             const raiseTotal = Math.min(amount, player.chips);
+            const previousBet = gameState.currentBet;
             const raiseAmount = raiseTotal - (gameState.currentBet - player.bet);
             player.chips -= raiseTotal;
             player.bet += raiseTotal;
             gameState.pot += raiseTotal;
+
+            // Update minimum raise based on this raise size
+            const raiseSize = player.bet - previousBet;
+            gameState.minRaise = raiseSize;
             gameState.currentBet = player.bet;
 
             // Reset hasActed for all other players (they need to respond to raise)
@@ -613,12 +625,16 @@ function executePlayerAction(player, decision) {
 
         case 'all-in':
             const allInAmount = player.chips;
+            const previousBetAllIn = gameState.currentBet;
             player.bet += allInAmount;
             gameState.pot += allInAmount;
             player.chips = 0;
             player.allIn = true;
 
             if (player.bet > gameState.currentBet) {
+                // Update minimum raise based on this all-in raise
+                const allInRaiseSize = player.bet - previousBetAllIn;
+                gameState.minRaise = allInRaiseSize;
                 gameState.currentBet = player.bet;
 
                 // Reset hasActed for all other players if this raises the bet
@@ -727,16 +743,22 @@ function enablePlayerActions(player) {
     // Update bet slider
     const slider = document.getElementById('bet-slider');
 
-    // Minimum raise must be at least big blind
-    // If there's a current bet, must raise by at least big blind
-    // If no current bet, must bet at least big blind
-    const minRaise = gameState.currentBet > 0
-        ? gameState.currentBet + gameState.bigBlind
-        : gameState.bigBlind;
+    // Minimum raise is the larger of:
+    // 1. Current bet + the last raise amount (to match the last raise)
+    // 2. Current bet + big blind (minimum increment)
+    let minRaiseAmount;
+    if (gameState.currentBet === 0) {
+        // No bet yet, minimum is big blind
+        minRaiseAmount = gameState.bigBlind;
+    } else {
+        // Minimum raise is larger of: last raise size OR big blind
+        const minIncrement = Math.max(gameState.minRaise, gameState.bigBlind);
+        minRaiseAmount = gameState.currentBet + minIncrement;
+    }
 
-    slider.min = minRaise;
+    slider.min = minRaiseAmount;
     slider.max = player.chips;
-    slider.value = Math.min(slider.max, minRaise);
+    slider.value = Math.min(slider.max, minRaiseAmount);
     document.getElementById('bet-amount').textContent = slider.value;
 }
 
