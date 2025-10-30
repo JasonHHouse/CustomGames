@@ -56,12 +56,13 @@ function startNewGame() {
     document.getElementById('start-panel').style.display = 'none';
     document.getElementById('game-over-panel').classList.add('hidden');
 
-    // Initialize players
+    // Initialize players with human names
+    const playerNames = ['You', 'Sarah', 'Marcus', 'Emma', 'Jack', 'Olivia', 'Chen', 'Isabella'];
     gameState.players = [];
     for (let i = 0; i < NUM_PLAYERS; i++) {
         gameState.players.push({
             id: i,
-            name: i === 0 ? 'You' : `Player ${i + 1}`,
+            name: playerNames[i],
             chips: STARTING_CHIPS,
             cards: [],
             bet: 0,
@@ -342,6 +343,63 @@ function dealRiver() {
 }
 
 /**
+ * Deal remaining cards when all players are all-in
+ */
+function dealRemainingCards() {
+    gameState.isRoundActive = false;
+
+    // Deal remaining community cards automatically
+    const dealNextCard = () => {
+        if (gameState.communityCards.length < 5) {
+            setTimeout(() => {
+                switch (gameState.communityCards.length) {
+                    case 0:
+                        // Deal flop
+                        gameState.round = 'flop';
+                        gameState.deck.pop(); // Burn
+                        const flopCards = dealCards(gameState.deck, 3);
+                        gameState.communityCards.push(...flopCards);
+                        updateCommunityCards();
+                        updateRoundName();
+                        dealNextCard();
+                        break;
+                    case 3:
+                        // Deal turn
+                        gameState.round = 'turn';
+                        gameState.deck.pop(); // Burn
+                        const turnCard = dealCards(gameState.deck, 1);
+                        gameState.communityCards.push(...turnCard);
+                        updateCommunityCards();
+                        updateRoundName();
+                        dealNextCard();
+                        break;
+                    case 4:
+                        // Deal river
+                        gameState.round = 'river';
+                        gameState.deck.pop(); // Burn
+                        const riverCard = dealCards(gameState.deck, 1);
+                        gameState.communityCards.push(...riverCard);
+                        updateCommunityCards();
+                        updateRoundName();
+                        // Go to showdown after river
+                        setTimeout(() => {
+                            showdown();
+                        }, 1000);
+                        break;
+                }
+            }, 1000);
+        } else {
+            // Already have all 5 cards, go to showdown
+            setTimeout(() => {
+                showdown();
+            }, 1000);
+        }
+    };
+
+    dealNextCard();
+}
+
+/**
  * Showdown - determine winner(s)
  */
 function showdown() {
@@ -358,16 +416,36 @@ function showdown() {
         if (winners.length > 0) {
             const winAmount = Math.floor(gameState.pot / winners.length);
 
+            // Clear previous winners
+            for (let player of gameState.players) {
+                player.isWinner = false;
+            }
+
+            // Mark and update winners with badge
             for (let winner of winners) {
                 winner.player.chips += winAmount;
+                winner.player.isWinner = true;
+
+                // Display winner with hand name
+                const winnerName = winner.player.isHuman ? 'You' : winner.player.name;
+                console.log(`${winnerName} wins $${winAmount} with ${winner.hand.name}`);
                 updatePlayerDisplay(winner.player, `Won $${winAmount} - ${winner.hand.name}`);
             }
+
+            // Update round name to show winner
+            const winnerNames = winners.map(w => w.player.isHuman ? 'You' : w.player.name).join(' & ');
+            const winnerHand = winners[0].hand.name;
+            document.getElementById('round-name').textContent = `${winnerNames} Won with ${winnerHand}!`;
+            document.getElementById('round-name').style.color = '#10b981';
 
             updateAllPlayers();
         }
 
-        // Start next hand after delay
+        // Clear winner badges and start next hand after delay
         setTimeout(() => {
+            for (let player of gameState.players) {
+                player.isWinner = false;
+            }
             startNewHand();
         }, 5000);
     }, 2000);
@@ -454,11 +532,11 @@ function executePlayerAction(player, decision) {
     updatePot();
     updateAllPlayers();
 
-    // Check if only one player remains
-    const activePlayers = gameState.players.filter(p => !p.folded && p.chips > 0);
-    if (activePlayers.length === 1) {
-        // Winner by default
-        const winner = activePlayers[0];
+    // Check if only one player remains who hasn't folded
+    const playersInHand = gameState.players.filter(p => !p.folded);
+    if (playersInHand.length === 1) {
+        // Winner by default (everyone else folded)
+        const winner = playersInHand[0];
         winner.chips += gameState.pot;
         updatePlayerDisplay(winner, `Won $${gameState.pot}`);
         updateAllPlayers();
@@ -466,6 +544,14 @@ function executePlayerAction(player, decision) {
         setTimeout(() => {
             startNewHand();
         }, 3000);
+        return;
+    }
+
+    // Check if all remaining players are all-in, skip to showdown
+    const playersCanAct = gameState.players.filter(p => !p.folded && !p.allIn && p.chips > 0);
+    if (playersCanAct.length === 0) {
+        // Everyone is all-in or folded, deal remaining cards and go to showdown
+        dealRemainingCards();
         return;
     }
 
@@ -583,11 +669,50 @@ function updatePlayerDisplay(player, status = '') {
     const playerEl = document.getElementById(`player-${player.id}`);
     if (!playerEl) return;
 
+    const playerInfo = playerEl.querySelector('.player-info');
+
     // Update chips
     playerEl.querySelector('.player-chips').textContent = `$${player.chips}`;
 
     // Update status
     playerEl.querySelector('.player-status').textContent = status;
+
+    // Remove old badges
+    playerInfo.querySelectorAll('.dealer-button, .blind-badge, .winner-badge').forEach(el => el.remove());
+
+    // Add dealer button
+    if (player.id === gameState.dealerIndex && gameState.isGameActive) {
+        const dealerBtn = document.createElement('div');
+        dealerBtn.className = 'dealer-button';
+        dealerBtn.textContent = 'D';
+        playerInfo.appendChild(dealerBtn);
+    }
+
+    // Add blind badges
+    if (gameState.isGameActive && gameState.round === 'pre-flop') {
+        const smallBlindIndex = getNextActivePlayer(gameState.dealerIndex);
+        const bigBlindIndex = getNextActivePlayer(smallBlindIndex);
+
+        if (player.id === smallBlindIndex) {
+            const sbBadge = document.createElement('div');
+            sbBadge.className = 'blind-badge small-blind';
+            sbBadge.textContent = 'SB';
+            playerInfo.appendChild(sbBadge);
+        } else if (player.id === bigBlindIndex) {
+            const bbBadge = document.createElement('div');
+            bbBadge.className = 'blind-badge';
+            bbBadge.textContent = 'BB';
+            playerInfo.appendChild(bbBadge);
+        }
+    }
+
+    // Add winner badge
+    if (player.isWinner) {
+        const winnerBadge = document.createElement('div');
+        winnerBadge.className = 'winner-badge';
+        winnerBadge.textContent = '🏆 WINNER';
+        playerInfo.appendChild(winnerBadge);
+    }
 
     // Update cards
     const cardsEl = playerEl.querySelector('.player-cards');
@@ -618,13 +743,21 @@ function updatePlayerDisplay(player, status = '') {
  * Update active player highlight
  */
 function updateActivePlayer(player) {
-    // Remove active class from all
-    document.querySelectorAll('.player').forEach(el => el.classList.remove('active'));
+    // Remove active class and action indicators from all
+    document.querySelectorAll('.player').forEach(el => {
+        el.classList.remove('active');
+        el.querySelectorAll('.action-indicator').forEach(ind => ind.remove());
+    });
 
     // Add to current
     const playerEl = document.getElementById(`player-${player.id}`);
     if (playerEl) {
         playerEl.classList.add('active');
+
+        // Add action indicator dot
+        const actionIndicator = document.createElement('div');
+        actionIndicator.className = 'action-indicator';
+        playerEl.querySelector('.player-info').appendChild(actionIndicator);
     }
 }
 

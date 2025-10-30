@@ -283,10 +283,10 @@ function getCombinations(array, k) {
  * Determine winners from multiple players
  */
 function determineWinners(players, communityCards) {
-    const activePlayers = players.filter(p => !p.folded && p.chips > 0);
+    const activePlayers = players.filter(p => !p.folded);
 
     if (activePlayers.length === 0) return [];
-    if (activePlayers.length === 1) return [activePlayers[0]];
+    if (activePlayers.length === 1) return [{player: activePlayers[0], hand: null}];
 
     // Evaluate all hands
     const evaluations = activePlayers.map(player => ({

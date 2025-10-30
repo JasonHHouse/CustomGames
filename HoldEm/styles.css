@@ -198,6 +198,76 @@ header h1 {
     font-size: 1.2rem;
 }
 
+/* Dealer Button - Small circular chip */
+.dealer-button {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    width: 26px;
+    height: 26px;
+    background: radial-gradient(circle at 40% 40%, #ffffff, #e0e0e0);
+    border: 2px solid #333;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: #000;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/* Blind Badges - Small circular chips */
+.blind-badge {
+    position: absolute;
+    top: -15px;
+    left: -15px;
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    border: 2px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: bold;
+    color: white;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.blind-badge.small-blind {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+/* Action Indicator - Pulsing dot for active player */
+.action-indicator {
+    position: absolute;
+    top: 50%;
+    right: -25px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background: #ffd700;
+    border: 3px solid #ff6b00;
+    border-radius: 50%;
+    z-index: 11;
+    animation: pulse-action 1s ease-in-out infinite;
+}
+
+@keyframes pulse-action {
+    0%, 100% {
+        transform: translateY(-50%) scale(1);
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    }
+    50% {
+        transform: translateY(-50%) scale(1.2);
+        box-shadow: 0 0 16px rgba(255, 215, 0, 1);
+    }
+}
+
 /* Player Positions (8 players around table in clockwise playing order) */
 /* Player 0 (You) - Bottom center */
 .player-0 {
