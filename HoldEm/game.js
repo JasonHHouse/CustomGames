@@ -92,7 +92,14 @@ function startNewGame() {
 function startNewHand() {
     console.log('Starting new hand...');
 
-    // Check if game should end
+    // Check if human player is out
+    const humanPlayer = gameState.players[0];
+    if (humanPlayer.chips === 0) {
+        showGameOverForHuman();
+        return;
+    }
+
+    // Check if game should end (only one player with chips left)
     const playersWithChips = gameState.players.filter(p => p.chips > 0);
     if (playersWithChips.length === 1) {
         endGame(playersWithChips[0]);
@@ -110,6 +117,7 @@ function startNewHand() {
     for (let player of gameState.players) {
         player.cards = [];
         player.bet = 0;
+        player.totalBet = 0; // Track total contribution for the hand
         player.folded = player.chips === 0; // Auto-fold if no chips
         player.allIn = false;
     }
@@ -250,7 +258,13 @@ function isBettingRoundComplete() {
     const activePlayers = gameState.players.filter(p => !p.folded && !p.allIn && p.chips > 0);
 
     if (activePlayers.length === 0) return true;
-    if (activePlayers.length === 1 && activePlayers[0].bet >= gameState.currentBet) return true;
+
+    // If only one active player remains, they must have acted AND matched the bet
+    // (or there's no bet to match)
+    if (activePlayers.length === 1) {
+        const player = activePlayers[0];
+        return player.hasActed && player.bet >= gameState.currentBet;
+    }
 
     // All active players must have acted AND matched the current bet
     const allActed = activePlayers.every(p => p.hasActed);
@@ -265,8 +279,9 @@ function isBettingRoundComplete() {
 function endBettingRound() {
     gameState.isRoundActive = false;
 
-    // Reset bets for next round
+    // Accumulate bets into totalBet before resetting for next round
     for (let player of gameState.players) {
+        player.totalBet += player.bet;
         player.bet = 0;
     }
     gameState.currentBet = 0;
@@ -400,7 +415,49 @@ function dealRemainingCards() {
 }
 
 /**
- * Showdown - determine winner(s)
+ * Calculate side pots for all-in scenarios
+ * Returns array of pots with eligible players
+ */
+function calculateSidePots() {
+    const pots = [];
+
+    // Use totalBet (accumulated across all rounds) + current bet
+    const activePlayers = gameState.players.filter(p => !p.folded).map(p => ({
+        ...p,
+        totalContribution: p.totalBet + p.bet
+    })).filter(p => p.totalContribution > 0);
+
+    if (activePlayers.length === 0) return pots;
+
+    // Sort players by total contribution (lowest to highest)
+    const sortedPlayers = [...activePlayers].sort((a, b) => a.totalContribution - b.totalContribution);
+
+    let remainingPlayers = [...activePlayers];
+    let previousBet = 0;
+
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        const currentBet = sortedPlayers[i].totalContribution;
+
+        if (currentBet > previousBet) {
+            const potAmount = (currentBet - previousBet) * remainingPlayers.length;
+
+            pots.push({
+                amount: potAmount,
+                eligiblePlayers: remainingPlayers.map(p => gameState.players[p.id]) // Map back to original player objects
+            });
+
+            previousBet = currentBet;
+        }
+
+        // Remove this player from future pots (they're all-in at this level)
+        remainingPlayers = remainingPlayers.filter(p => p.id !== sortedPlayers[i].id);
+    }
+
+    return pots;
+}
+
+/**
+ * Showdown - determine winner(s) with side pot support
  */
 function showdown() {
     gameState.round = 'showdown';
@@ -411,35 +468,82 @@ function showdown() {
 
     // Determine winners
     setTimeout(() => {
-        const winners = determineWinners(gameState.players, gameState.communityCards);
+        // Calculate side pots
+        const sidePots = calculateSidePots();
 
-        if (winners.length > 0) {
-            const winAmount = Math.floor(gameState.pot / winners.length);
+        console.log('=== SIDE POT CALCULATION ===');
+        console.log('Total pot:', gameState.pot);
+        console.log('Player contributions:', gameState.players.filter(p => !p.folded).map(p => ({
+            name: p.name,
+            currentBet: p.bet,
+            totalBet: p.totalBet,
+            total: p.bet + p.totalBet,
+            chips: p.chips
+        })));
+        console.log('Side pots:', sidePots.map(pot => ({
+            amount: pot.amount,
+            eligible: pot.eligiblePlayers.map(p => p.name)
+        })));
+        console.log('Total in side pots:', sidePots.reduce((sum, pot) => sum + pot.amount, 0));
 
-            // Clear previous winners
-            for (let player of gameState.players) {
-                player.isWinner = false;
-            }
-
-            // Mark and update winners with badge
-            for (let winner of winners) {
-                winner.player.chips += winAmount;
-                winner.player.isWinner = true;
-
-                // Display winner with hand name
-                const winnerName = winner.player.isHuman ? 'You' : winner.player.name;
-                console.log(`${winnerName} wins $${winAmount} with ${winner.hand.name}`);
-                updatePlayerDisplay(winner.player, `Won $${winAmount} - ${winner.hand.name}`);
-            }
-
-            // Update round name to show winner
-            const winnerNames = winners.map(w => w.player.isHuman ? 'You' : w.player.name).join(' & ');
-            const winnerHand = winners[0].hand.name;
-            document.getElementById('round-name').textContent = `${winnerNames} Won with ${winnerHand}!`;
-            document.getElementById('round-name').style.color = '#10b981';
-
-            updateAllPlayers();
+        // Clear previous winners
+        for (let player of gameState.players) {
+            player.isWinner = false;
+            player.winAmount = 0;
         }
+
+        let mainWinnerInfo = null;
+
+        // Award each pot starting from main pot (last/largest)
+        for (let i = sidePots.length - 1; i >= 0; i--) {
+            const pot = sidePots[i];
+
+            console.log(`\n=== AWARDING POT ${sidePots.length - i} ===`);
+            console.log(`Amount: $${pot.amount}`);
+            console.log(`Eligible players: ${pot.eligiblePlayers.map(p => p.name).join(', ')}`);
+
+            // Determine winner(s) from eligible players
+            const winners = determineWinners(pot.eligiblePlayers, gameState.communityCards);
+
+            console.log(`Winners: ${winners.map(w => w.player.name).join(', ')}`);
+
+            if (winners.length > 0) {
+                const winAmount = Math.floor(pot.amount / winners.length);
+
+                console.log(`Each winner gets: $${winAmount}`);
+
+                for (let winner of winners) {
+                    winner.player.chips += winAmount;
+                    winner.player.winAmount = (winner.player.winAmount || 0) + winAmount;
+                    winner.player.isWinner = true;
+
+                    const winnerName = winner.player.isHuman ? 'You' : winner.player.name;
+                    const handName = winner.hand ? winner.hand.name : 'Best Hand';
+                    console.log(`${winnerName} wins $${winAmount} (Pot ${sidePots.length - i}) with ${handName}`);
+
+                    // Save main pot winner for display
+                    if (i === sidePots.length - 1) {
+                        mainWinnerInfo = { winners, handName };
+                    }
+                }
+            }
+        }
+
+        // Update display for all winners
+        for (let player of gameState.players) {
+            if (player.winAmount > 0) {
+                updatePlayerDisplay(player, `Won $${player.winAmount}`);
+            }
+        }
+
+        // Update round name to show main pot winner
+        if (mainWinnerInfo) {
+            const winnerNames = mainWinnerInfo.winners.map(w => w.player.isHuman ? 'You' : w.player.name).join(' & ');
+            document.getElementById('round-name').textContent = `${winnerNames} Won with ${mainWinnerInfo.handName}!`;
+            document.getElementById('round-name').style.color = '#10b981';
+        }
+
+        updateAllPlayers();
 
         // Clear winner badges and start next hand after delay
         setTimeout(() => {
@@ -622,9 +726,17 @@ function enablePlayerActions(player) {
 
     // Update bet slider
     const slider = document.getElementById('bet-slider');
-    slider.min = gameState.currentBet * 2;
+
+    // Minimum raise must be at least big blind
+    // If there's a current bet, must raise by at least big blind
+    // If no current bet, must bet at least big blind
+    const minRaise = gameState.currentBet > 0
+        ? gameState.currentBet + gameState.bigBlind
+        : gameState.bigBlind;
+
+    slider.min = minRaise;
     slider.max = player.chips;
-    slider.value = Math.min(slider.max, gameState.currentBet * 2);
+    slider.value = Math.min(slider.max, minRaise);
     document.getElementById('bet-amount').textContent = slider.value;
 }
 
@@ -795,6 +907,22 @@ function updateRoundName() {
 
 /**
  * End game
+ */
+/**
+ * Show game over for human player (busted out)
+ */
+function showGameOverForHuman() {
+    gameState.isGameActive = false;
+
+    document.getElementById('game-over-title').textContent = 'You Busted Out!';
+    document.getElementById('game-over-message').textContent =
+        'You ran out of chips. Better luck next time!';
+
+    document.getElementById('game-over-panel').classList.remove('hidden');
+}
+
+/**
+ * End game when only one player remains
  */
 function endGame(winner) {
     gameState.isGameActive = false;
