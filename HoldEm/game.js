@@ -183,6 +183,11 @@ function postBlinds() {
  * Start betting round
  */
 function startBettingRound() {
+    // Track which players have acted this round
+    for (let player of gameState.players) {
+        player.hasActed = false;
+    }
+
     // Determine first player to act
     if (gameState.round === 'pre-flop') {
         // After big blind
@@ -246,8 +251,11 @@ function isBettingRoundComplete() {
     if (activePlayers.length === 0) return true;
     if (activePlayers.length === 1 && activePlayers[0].bet >= gameState.currentBet) return true;
 
-    // All active players have matched the current bet
-    return activePlayers.every(p => p.bet === gameState.currentBet);
+    // All active players must have acted AND matched the current bet
+    const allActed = activePlayers.every(p => p.hasActed);
+    const allMatched = activePlayers.every(p => p.bet === gameState.currentBet);
+
+    return allActed && allMatched;
 }
 
 /**
@@ -371,6 +379,9 @@ function showdown() {
 function executePlayerAction(player, decision) {
     const { action, amount } = decision;
 
+    // Mark player as having acted
+    player.hasActed = true;
+
     switch (action) {
         case 'fold':
             player.folded = true;
@@ -403,6 +414,13 @@ function executePlayerAction(player, decision) {
             gameState.pot += raiseTotal;
             gameState.currentBet = player.bet;
 
+            // Reset hasActed for all other players (they need to respond to raise)
+            for (let p of gameState.players) {
+                if (p.id !== player.id && !p.folded && !p.allIn) {
+                    p.hasActed = false;
+                }
+            }
+
             if (player.chips === 0) {
                 player.allIn = true;
                 updatePlayerDisplay(player, 'All In');
@@ -420,6 +438,13 @@ function executePlayerAction(player, decision) {
 
             if (player.bet > gameState.currentBet) {
                 gameState.currentBet = player.bet;
+
+                // Reset hasActed for all other players if this raises the bet
+                for (let p of gameState.players) {
+                    if (p.id !== player.id && !p.folded && !p.allIn) {
+                        p.hasActed = false;
+                    }
+                }
             }
 
             updatePlayerDisplay(player, 'All In');
