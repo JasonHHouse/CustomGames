@@ -496,6 +496,18 @@ header h1 {
     box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6);
 }
 
+/* Continue Panel (Between Hands) */
+.continue-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999;
+}
+
+.continue-panel.hidden {
+    display: none;
+}
+
 /* Game Over Panel */
 .game-over-panel {
     position: fixed;

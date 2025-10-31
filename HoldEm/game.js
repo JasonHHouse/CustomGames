@@ -32,6 +32,7 @@ function initGame() {
     // Setup event listeners
     document.getElementById('start-btn').addEventListener('click', startNewGame);
     document.getElementById('new-game-btn').addEventListener('click', startNewGame);
+    document.getElementById('continue-btn').addEventListener('click', continueToNextHand);
     document.getElementById('fold-btn').addEventListener('click', () => playerAction('fold'));
     document.getElementById('check-btn').addEventListener('click', () => playerAction('check'));
     document.getElementById('call-btn').addEventListener('click', () => playerAction('call'));
@@ -121,7 +122,11 @@ function startNewHand() {
         player.totalBet = 0; // Track total contribution for the hand
         player.folded = player.chips === 0; // Auto-fold if no chips
         player.allIn = false;
+        player.lastAction = ''; // Track last action for display
     }
+
+    // Update display to clear previous hand's actions
+    updateAllPlayers();
 
     // Clear community cards display
     updateCommunityCards();
@@ -188,8 +193,10 @@ function postBlinds() {
 
     if (bigBlindPlayer.chips === 0) bigBlindPlayer.allIn = true;
 
-    updatePlayerDisplay(smallBlindPlayer, 'Small Blind');
-    updatePlayerDisplay(bigBlindPlayer, 'Big Blind');
+    smallBlindPlayer.lastAction = 'Small Blind';
+    bigBlindPlayer.lastAction = 'Big Blind';
+    updatePlayerDisplay(smallBlindPlayer);
+    updatePlayerDisplay(bigBlindPlayer);
 }
 
 /**
@@ -290,6 +297,10 @@ function endBettingRound() {
     for (let player of gameState.players) {
         player.totalBet += player.bet;
         player.bet = 0;
+        // Clear last action for next betting round
+        if (!player.folded) {
+            player.lastAction = '';
+        }
     }
     gameState.currentBet = 0;
 
@@ -552,14 +563,34 @@ function showdown() {
 
         updateAllPlayers();
 
-        // Clear winner badges and start next hand after delay
+        // Show continue button after delay
         setTimeout(() => {
-            for (let player of gameState.players) {
-                player.isWinner = false;
-            }
-            startNewHand();
-        }, 5000);
+            showContinueButton();
+        }, 2000);
     }, 2000);
+}
+
+/**
+ * Show continue button and wait for user to proceed
+ */
+function showContinueButton() {
+    document.getElementById('continue-panel').classList.remove('hidden');
+}
+
+/**
+ * Continue to next hand (called when user clicks continue button)
+ */
+function continueToNextHand() {
+    // Hide continue button
+    document.getElementById('continue-panel').classList.add('hidden');
+
+    // Clear winner badges
+    for (let player of gameState.players) {
+        player.isWinner = false;
+    }
+
+    // Start next hand
+    startNewHand();
 }
 
 /**
@@ -574,11 +605,13 @@ function executePlayerAction(player, decision) {
     switch (action) {
         case 'fold':
             player.folded = true;
-            updatePlayerDisplay(player, 'Folded');
+            player.lastAction = 'Folded';
+            updatePlayerDisplay(player);
             break;
 
         case 'check':
-            updatePlayerDisplay(player, 'Check');
+            player.lastAction = 'Check';
+            updatePlayerDisplay(player);
             break;
 
         case 'call':
@@ -589,10 +622,11 @@ function executePlayerAction(player, decision) {
 
             if (player.chips === 0) {
                 player.allIn = true;
-                updatePlayerDisplay(player, 'All In');
+                player.lastAction = 'All In';
             } else {
-                updatePlayerDisplay(player, `Call $${callAmount}`);
+                player.lastAction = `Call $${callAmount}`;
             }
+            updatePlayerDisplay(player);
             break;
 
         case 'raise':
@@ -617,10 +651,11 @@ function executePlayerAction(player, decision) {
 
             if (player.chips === 0) {
                 player.allIn = true;
-                updatePlayerDisplay(player, 'All In');
+                player.lastAction = 'All In';
             } else {
-                updatePlayerDisplay(player, `Raise $${raiseAmount}`);
+                player.lastAction = `Raise $${raiseAmount}`;
             }
+            updatePlayerDisplay(player);
             break;
 
         case 'all-in':
@@ -630,6 +665,7 @@ function executePlayerAction(player, decision) {
             gameState.pot += allInAmount;
             player.chips = 0;
             player.allIn = true;
+            player.lastAction = 'All In';
 
             if (player.bet > gameState.currentBet) {
                 // Update minimum raise based on this all-in raise
@@ -645,7 +681,7 @@ function executePlayerAction(player, decision) {
                 }
             }
 
-            updatePlayerDisplay(player, 'All In');
+            updatePlayerDisplay(player);
             break;
     }
 
@@ -658,12 +694,18 @@ function executePlayerAction(player, decision) {
         // Winner by default (everyone else folded)
         const winner = playersInHand[0];
         winner.chips += gameState.pot;
+        winner.isWinner = true;
         updatePlayerDisplay(winner, `Won $${gameState.pot}`);
         updateAllPlayers();
 
+        // Update round name to show winner
+        const winnerName = winner.isHuman ? 'You' : winner.name;
+        document.getElementById('round-name').textContent = `${winnerName} Wins!`;
+        document.getElementById('round-name').style.color = '#10b981';
+
         setTimeout(() => {
-            startNewHand();
-        }, 3000);
+            showContinueButton();
+        }, 2000);
         return;
     }
 
@@ -808,8 +850,9 @@ function updatePlayerDisplay(player, status = '') {
     // Update chips
     playerEl.querySelector('.player-chips').textContent = `$${player.chips}`;
 
-    // Update status
-    playerEl.querySelector('.player-status').textContent = status;
+    // Update status - use provided status or player's last action
+    const displayStatus = status || player.lastAction || '';
+    playerEl.querySelector('.player-status').textContent = displayStatus;
 
     // Remove old badges
     playerInfo.querySelectorAll('.dealer-button, .blind-badge, .winner-badge').forEach(el => el.remove());
@@ -853,7 +896,8 @@ function updatePlayerDisplay(player, status = '') {
     cardsEl.innerHTML = '';
 
     if (player.cards.length > 0) {
-        if (player.isHuman || gameState.round === 'showdown') {
+        // Show cards for human player, or at showdown if player didn't fold
+        if (player.isHuman || (gameState.round === 'showdown' && !player.folded)) {
             // Show cards
             for (let card of player.cards) {
                 cardsEl.appendChild(createCardElement(card));
